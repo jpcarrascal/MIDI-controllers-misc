@@ -1,10 +1,15 @@
 #include <Arduino.h>
 #include <BLEMidi.h>
-
 #include <Button2.h>
+#include <movingAvg.h>
 
 #define POT_COUNT 4 // We have 4 potentiometers/knobs
 #define BUT_COUNT 4
+#define INTLED 22
+#define PROX 25
+#define LONGCLICK_MS 5000
+
+movingAvg foo(100);
 
 // Configurationflags:
 const bool debug = false;
@@ -18,9 +23,10 @@ Button2 sw_2 = Button2(18, INPUT_PULLUP);
 Button2 sw_3 = Button2(23, INPUT_PULLUP);
 Button2 sw_4 = Button2(19, INPUT_PULLUP);
 
-const int intLed = 22;
+
 int count = 0;
-bool ledStatus = false;
+int prevProx = 0;
+bool ledStatus = false, noteOnSent = false, proxOn = false;
 const int CCchannel = 1;
 const int INchannel = 16;
 const int PCchannel = 13;
@@ -39,7 +45,8 @@ void connected()
 }
 
 void setup() {
-  pinMode(intLed, OUTPUT);
+  if( !digitalRead(19) ) proxOn = true;
+  pinMode(INTLED, OUTPUT);
   Serial.begin(115200);
   BLEMidiServer.begin("Transparent");
   BLEMidiServer.setOnConnectCallback(connected);
@@ -49,6 +56,7 @@ void setup() {
   });
   //BLEMidiServer.enableDebugging();
 
+  foo.begin();
   for(int i=0; i<4; i++) {
     adcAttachPin(pot[i]);
     potval[i] = mapAndClamp(analogRead(pot[i]));
@@ -56,6 +64,7 @@ void setup() {
 
   // Switch press and release callbacks
   sw_1.setPressedHandler(onButtonPressed);
+  //sw_1.setLongClickDetectedHandler(longClick);
   sw_2.setPressedHandler(onButtonPressed);
   sw_3.setPressedHandler(onButtonPressed);
   sw_4.setPressedHandler(onButtonPressed);
@@ -70,11 +79,25 @@ void setup() {
 }
 
 void loop() {
-  if(BTconnected) digitalWrite(intLed, LOW);
+  if(proxOn) {
+    int sensorData = analogRead(PROX);
+    int inProx = foo.reading(sensorData);
+
+    Serial.println(inProx);
+    bool withinRange = (sensorData >= 100 && sensorData <= 680);
+    if( withinRange ) {
+      if(abs(prevProx-inProx) > 10) {
+        int value = map(inProx, 100, 600, 0, 32767);
+        ccSend(7, value, CCchannel);
+      }
+    }  
+  }
+
+  if(BTconnected) digitalWrite(INTLED, LOW);
   else {
     if(count >= 1000) {
       ledStatus = !ledStatus;
-      digitalWrite(intLed, ledStatus);
+      digitalWrite(INTLED, ledStatus);
       count = 0;
     }
     count++;
