@@ -1,15 +1,11 @@
 #include <Arduino.h>
 #include <BLEMidi.h>
 #include <Button2.h>
-#include <movingAvg.h>
 
 #define POT_COUNT 4 // We have 4 potentiometers/knobs
 #define BUT_COUNT 4
 #define INTLED 22
-#define PROX 25
 #define LONGCLICK_MS 5000
-
-movingAvg foo(100);
 
 // Configurationflags:
 const bool debug = false;
@@ -25,15 +21,14 @@ Button2 sw_4 = Button2(19, INPUT_PULLUP);
 
 
 int count = 0;
-int prevProx = 0;
-bool ledStatus = false, noteOnSent = false, proxOn = false;
+bool ledStatus = false, noteOnSent = false;
 const int CCchannel = 1;
 const int INchannel = 16;
 const int PCchannel = 13;
 const int note[BUT_COUNT] = {31,30,29,28};
 
 const int cc_pot[POT_COUNT] = {3, 4, 5, 6};
-const int pot[POT_COUNT] = {34,35,33,32};
+const int pot[POT_COUNT] = {35,34,33,32};
 int potval[POT_COUNT];
 int potvalIN[POT_COUNT];
 bool potPosCorrect[POT_COUNT] = {true, true, true, true};
@@ -45,7 +40,6 @@ void connected()
 }
 
 void setup() {
-  if( !digitalRead(19) ) proxOn = true;
   pinMode(INTLED, OUTPUT);
   Serial.begin(115200);
   BLEMidiServer.begin("Transparent");
@@ -56,7 +50,6 @@ void setup() {
   });
   //BLEMidiServer.enableDebugging();
 
-  foo.begin();
   for(int i=0; i<4; i++) {
     adcAttachPin(pot[i]);
     potval[i] = mapAndClamp(analogRead(pot[i]));
@@ -79,19 +72,6 @@ void setup() {
 }
 
 void loop() {
-  if(proxOn) {
-    int sensorData = analogRead(PROX);
-    int inProx = foo.reading(sensorData);
-
-    Serial.println(inProx);
-    bool withinRange = (sensorData >= 100 && sensorData <= 680);
-    if( withinRange ) {
-      if(abs(prevProx-inProx) > 10) {
-        int value = map(inProx, 100, 600, 0, 32767);
-        ccSend(7, value, CCchannel);
-      }
-    }  
-  }
 
   if(BTconnected) digitalWrite(INTLED, LOW);
   else {
@@ -158,7 +138,8 @@ void noteOffSend(int note, int vel, int channel) {
 int mapAndClamp(int input) {
   int inMin = 1023;
   int inMax = 0;
-  int outval = map(input, inMin, inMax, 0, 127);
+  // Invert (0-127) range if needed
+  int outval = map(input, inMin, inMax, 127, 0);
   if(outval < 0) outval = 0;
   if(outval>127) outval = 127;
   return (outval);
