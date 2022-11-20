@@ -1,11 +1,15 @@
 #include <Arduino.h>
 #include <BLEMidi.h>
 #include <Button2.h>
+#include <Adafruit_NeoPixel.h>
 
 #define POT_COUNT 4 // We have 4 potentiometers/knobs
 #define BUT_COUNT 4
 #define INTLED 22
 #define LONGCLICK_MS 5000
+
+#define LED_PIN 17
+#define NUMLEDS 2
 
 // Configurationflags:
 const bool debug = false;
@@ -13,12 +17,14 @@ const bool usbMIDI = true; // Send MIDI via USB?
 const bool sendRelease = true; // Send on release? 
 bool pickUpMode = true;
 bool BTconnected = false;
+static unsigned long last = 0;
 
 Button2 sw_1 = Button2(27, INPUT_PULLUP);
 Button2 sw_2 = Button2(18, INPUT_PULLUP);
 Button2 sw_3 = Button2(23, INPUT_PULLUP);
 Button2 sw_4 = Button2(19, INPUT_PULLUP);
 
+Adafruit_NeoPixel strip  = Adafruit_NeoPixel(NUMLEDS, LED_PIN);
 
 int count = 0;
 bool ledStatus = false, noteOnSent = false;
@@ -32,11 +38,22 @@ const int pot[POT_COUNT] = {35,34,33,32};
 int potval[POT_COUNT];
 int potvalIN[POT_COUNT];
 bool potPosCorrect[POT_COUNT] = {true, true, true, true};
+uint32_t color = 0xFF00FF;
+int colorCount = 0;
+int maxCount = 5;
+float inVel;
 
 void connected()
 {
   Serial.println("Connected");
   BTconnected = true;
+}
+
+void onNoteOn(uint8_t channel, uint8_t note, uint8_t velocity, uint16_t timestamp)
+{
+  //Serial.printf("Received note on : channel %d, note %d, velocity %d (timestamp %dms)\n", channel, note, velocity, timestamp);
+  inVel = (float) velocity / 127;
+  colorCount = maxCount;
 }
 
 void setup() {
@@ -48,6 +65,7 @@ void setup() {
     Serial.println("Disconnected");
     BTconnected = false;
   });
+  BLEMidiServer.setNoteOnCallback(onNoteOn);
   //BLEMidiServer.enableDebugging();
 
   for(int i=0; i<4; i++) {
@@ -69,6 +87,14 @@ void setup() {
     sw_4.setReleasedHandler(onButtonReleased);  
   }
   analogReadResolution(10);
+
+  strip.begin();
+  strip.setBrightness(100);
+
+  for(uint8_t i=0; i<NUMLEDS; i++) {
+     strip.setPixelColor (i, 0x000000);
+  }
+  strip.show();
 }
 
 void loop() {
@@ -99,6 +125,25 @@ void loop() {
       ccSend(cc_pot[i], potvalNew[i], CCchannel);
     }
   }
+  /*--------- LEDs BEGIN ---------*/
+  if ( BLEMidiServer.isConnected() && (millis() - last >= 24) ) {
+    last += 24;
+    uint8_t  i;
+    for(i=0; i<NUMLEDS; i++) {
+      uint32_t c = 0;
+      float fade = ((float) colorCount / maxCount) * inVel;
+      fade *= fade;
+      if(colorCount > 0) {
+        c = dimColor(color, fade);
+        //Serial.println(fade);
+      }
+      strip.setPixelColor (i, c);
+    }
+    colorCount--;
+    strip.show();
+  }
+  /*--------- LEDs END ---------*/
+  
 }
 
 void onButtonPressed(Button2& btn){
@@ -162,4 +207,12 @@ void debugThis(String name, int i, int value) {
     Serial.print(": ");
     Serial.println(value);
   }
+}
+
+uint32_t dimColor(uint32_t color, float fade) {
+    uint8_t r = fade * (float) ((color >> 16) & 0x0000FF);
+    uint8_t g = fade * (float) ((color >> 8) & 0x0000FF);
+    uint8_t b = fade * (float) (color & 0x0000FF);
+    uint32_t dimmedColor = (r<<16) + (g<<8) + (b);
+    return (dimmedColor);
 }
