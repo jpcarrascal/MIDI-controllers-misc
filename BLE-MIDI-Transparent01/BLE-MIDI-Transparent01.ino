@@ -50,13 +50,6 @@ void setup() {
   pinMode(intLed, OUTPUT);
   Serial.begin(115200);
   if(i2cMIDI) Wire.begin(I2C_SDA, I2C_SCL);
-  BLEMidiServer.begin("Transparent");
-  BLEMidiServer.setOnConnectCallback(connected);
-  BLEMidiServer.setOnDisconnectCallback([](){     // To show how to make a callback with a lambda function
-    Serial.println("Disconnected");
-    BTconnected = false;
-  });
-  //BLEMidiServer.enableDebugging();
 
   for(int i=0; i<4; i++) {
     adcAttachPin(pot[i]);
@@ -76,6 +69,16 @@ void setup() {
     sw_4.setReleasedHandler(onButtonReleased);  
   }
   analogReadResolution(10);
+
+  if(sw_4.isPressed()) {
+    BLEMidiServer.begin("Transparent");
+    BLEMidiServer.setOnConnectCallback(connected);
+    BLEMidiServer.setOnDisconnectCallback([](){     // To show how to make a callback with a lambda function
+      Serial.println("Disconnected");
+      BTconnected = false;
+    });
+    //BLEMidiServer.enableDebugging();
+  }
   hb.setColor(0xFFFFFF);
   anim = 5;
 }
