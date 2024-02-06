@@ -24,7 +24,9 @@ void setup() {
   Serial.begin(115200);
 
   // Trill sensor:
-  int ret = trillSensor.setup(Trill::TRILL_BAR);
+  int ret = Wire.setPins(23, 19); // Set SDL and SDA for LOLIN32
+  ret = trillSensor.setup(Trill::TRILL_BAR);
+  
   if(ret != 0) {
     Serial.println("failed to initialise trillSensor");
     Serial.print("Error code: ");
@@ -54,7 +56,7 @@ void loop() {
     if(!touchActive)
       ccSend(0, 127, CCchannel);
     int inVal = trillSensor.touchLocation(0);
-    int outVal = midiMapAndClamp(inVal, 0, 3200, 150, 3050, true);
+    int outVal = midiMapAndClamp(inVal, 0, 3200, 170, 3030, false);
     if(prevOutVal != outVal) {
       ccSend(1, outVal, CCchannel);
       prevOutVal = outVal;
