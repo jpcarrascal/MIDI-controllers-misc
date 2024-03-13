@@ -1,9 +1,11 @@
 #include <Arduino.h>
 #include <BLEMidi.h>
 #include <Trill.h>
-
 // Configurationflags:
 const bool debug = false;
+const bool debugSensors = false;
+const bool mariposa = false;
+
 bool BTconnected = false;
 
 Trill trillSensor;
@@ -12,7 +14,10 @@ bool threeTouchSw = false;
 
 int count = 0;
 int prevOutVal = -1;
+int prevPushVal = 1;
+int pushPin = 5;
 const int CCchannel = 1;
+bool invert = false;
 
 void connected() {
   Serial.println("Connected");
@@ -21,9 +26,15 @@ void connected() {
 
 void setup() {
   Serial.begin(115200);
+  pinMode(pushPin, INPUT_PULLUP);
 
+  if(mariposa) invert = false;
+  else invert = true;
+  
   // Trill sensor:
-  int ret = Wire.setPins(23, 19);  // Set SDL and SDA for LOLIN32
+  int ret = Wire.setPins(23, 19);  // Set SDA and SCL for LOLIN32
+  // Trill Sensor cable yellow = SCL
+  // Trill Sensor cable blue/white = SDA
   ret = trillSensor.setup(Trill::TRILL_BAR);
 
   if (ret != 0) {
@@ -33,7 +44,8 @@ void setup() {
   }
 
   // BLE MIDI:
-  BLEMidiServer.begin("TrillGuitar");
+  if(mariposa) BLEMidiServer.begin("TrillGuitar");
+  else BLEMidiServer.begin("TrillGuitar2");
   BLEMidiServer.setOnConnectCallback(connected);
   BLEMidiServer.setOnDisconnectCallback([]() {  // To show how to make a callback with a lambda function
     Serial.println("Disconnected");
@@ -56,12 +68,12 @@ void loop() {
       ccSend(0, 127, CCchannel);
     }
     int inVal = trillSensor.touchLocation(0);
-    int outVal = midiMapAndClamp(inVal, 0, 3200, 170, 3030, false);
+    int outVal = midiMapAndClamp(inVal, 0, 3200, 170, 3030, invert);
     if (prevOutVal != outVal) {
       ccSend(1, outVal, CCchannel);
       prevOutVal = outVal;
     }
-    if (debug) {
+    if (debugSensors) {
       for (int i = 0; i < numTouches; i++) {
         Serial.print(trillSensor.touchLocation(i));
         Serial.print(" ");
@@ -83,6 +95,12 @@ void loop() {
       ccSend(2, 0, CCchannel);
       threeTouchSw = false;
     }
+  }
+
+  int pushVal = digitalRead(pushPin);
+  if(prevPushVal != pushVal) {
+    ccSend(3, (1-pushVal)*127, CCchannel);
+    prevPushVal = pushVal;
   }
 }
 
@@ -111,11 +129,11 @@ void noteOffSend(int note, int vel, int channel) {
 }
 
 int midiMapAndClamp(int input, int min, int max, int bottom, int top, bool inv) {
-  if (min < bottom) min = bottom;
-  if (max > top) max = top;
+  if (input < bottom) input = bottom;
+  if (input > top) input = top;
   int outval = 0;
-  if (inv) outval = map(input, min, max, 127, 0);
-  else outval = map(input, min, max, 0, 127);
+  if (inv) outval = map(input, bottom, top, 127, 0);
+  else outval = map(input, bottom, top, 0, 127);
   return (outval);
 }
 
