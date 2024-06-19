@@ -53,7 +53,7 @@ void setup() {
 
   for(int i=0; i<4; i++) {
     adcAttachPin(pot[i]);
-    potval[i] = mapAndClamp(analogRead(pot[i]));
+    potval[i] = 127 - mapAndClamp(analogRead(pot[i]));
   }
 
   // Switch press and release callbacks
@@ -70,7 +70,8 @@ void setup() {
   }
   analogReadResolution(10);
 
-  if(sw_4.isPressed()) {
+  //if(sw_4.isPressed()) {
+  if(true) {
     BLEMidiServer.begin("Transparent");
     BLEMidiServer.setOnConnectCallback(connected);
     BLEMidiServer.setOnDisconnectCallback([](){     // To show how to make a callback with a lambda function
@@ -100,7 +101,7 @@ void loop() {
 
   int potvalNew[4];
   for(int i=0; i<4; i++) {
-    potvalNew[i] = mapAndClamp(analogRead(pot[i]));
+    potvalNew[i] = 127 - mapAndClamp(analogRead(pot[i]));
   }
 
   for(int i=0; i<4; i++) {
