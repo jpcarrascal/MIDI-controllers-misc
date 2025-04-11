@@ -1,6 +1,11 @@
 #include <Arduino.h>
 #include <BLEMidi.h>
 #include <Trill.h>
+#include <HootBeat.h>
+
+#define PINL 32
+#define NUMLEDS 13
+
 // Configurationflags:
 const bool debug = false;
 const bool debugSensors = false;
@@ -19,12 +24,19 @@ int pushPin = 5;
 const int CCchannel = 1;
 bool invert = false;
 
-void connected() {
-  Serial.println("Connected");
-  BTconnected = true;
-}
+int someOn = 0;
+uint8_t disconnectAnim = 100;
+uint8_t anim = disconnectAnim;
+uint32_t connColor      = 0x909090,
+         disconnColor   = 0x000006,
+         bdColor        = 0x000006,
+         sdColor        = 0x000006;
+
+HootBeat hb = HootBeat(NUMLEDS, PINL);
 
 void setup() {
+  hb.setDelay(0);
+  hb.setColor(disconnColor);
   Serial.begin(115200);
   pinMode(pushPin, INPUT_PULLUP);
 
@@ -46,12 +58,23 @@ void setup() {
   // BLE MIDI:
   if(mariposa) BLEMidiServer.begin("TrillGuitar");
   else BLEMidiServer.begin("TrillGuitar2");
-  BLEMidiServer.setOnConnectCallback(connected);
+
+  BLEMidiServer.setOnConnectCallback([](){
+    Serial.println("Connected");
+    BTconnected = true;
+    hb.setColor(connColor);
+    anim = 9;
+  });
+
   BLEMidiServer.setOnDisconnectCallback([]() {  // To show how to make a callback with a lambda function
     Serial.println("Disconnected");
     BTconnected = false;
+    hb.setColor(disconnColor);
+    hb.isRunning = true;
+    anim = disconnectAnim;
   });
   //BLEMidiServer.enableDebugging();
+
 }
 
 void loop() {
@@ -69,8 +92,10 @@ void loop() {
     }
     int inVal = trillSensor.touchLocation(0);
     int outVal = midiMapAndClamp(inVal, 0, 3200, 170, 3030, invert);
+    someOn = map(inVal, 0, 3030, NUMLEDS, 0);
     if (prevOutVal != outVal) {
       ccSend(1, outVal, CCchannel);
+      hb.setSomeOn(someOn);
       prevOutVal = outVal;
     }
     if (debugSensors) {
@@ -90,11 +115,12 @@ void loop() {
     ccSend(1, 0, CCchannel); // return to zero?
     prevOutVal = -1; // Reset previous value sent
     touchActive = false;
-
     if (threeTouchSw) {
       ccSend(2, 0, CCchannel);
       threeTouchSw = false;
     }
+    hb.setSomeOn(0);
+    hb.triggerFlash(5);
   }
 
   int pushVal = digitalRead(pushPin);
@@ -102,6 +128,8 @@ void loop() {
     ccSend(3, (1-pushVal)*127, CCchannel);
     prevPushVal = pushVal;
   }
+
+  hb.step(anim);
 }
 
 void ccSend(int cc, int value, int channel) {
