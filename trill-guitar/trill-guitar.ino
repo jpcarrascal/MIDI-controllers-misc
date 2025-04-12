@@ -110,7 +110,7 @@ void loop() {
     }
     int inVal = trillSensor.touchLocation(0);
     int outVal = midiMapAndClamp(inVal, 0, 3200, 170, 3030, invert);
-    someOn = map(inVal, 0, 3030, NUMLEDS, 0);
+    someOn = map(inVal, 0, 3300, NUMLEDS, 0);
     if (prevOutVal != outVal) {
       ccSend(1, outVal, CCchannel);
       hb.setSomeOn(someOn);
