@@ -25,12 +25,14 @@ const int CCchannel = 1;
 bool invert = false;
 
 int someOn = 0;
-uint8_t disconnectAnim = 100;
-uint8_t anim = disconnectAnim;
-uint32_t connColor      = 0x909090,
-         disconnColor   = 0x000006,
-         bdColor        = 0x000006,
-         sdColor        = 0x000006;
+uint8_t bounceAnim = 10; // "Bounce"
+uint8_t someOnAnim = 9; // "Some on"
+uint8_t strobeAnim = 7; // "Some on"
+uint8_t anim = bounceAnim;
+uint8_t currentAnim = bounceAnim;
+uint32_t defaultColor      = 0x9060FF,
+         disconnColor   = 0x0000F0,
+         pushColor      = 0xF0F0F0;
 
 HootBeat hb = HootBeat(NUMLEDS, PINL);
 
@@ -62,8 +64,9 @@ void setup() {
   BLEMidiServer.setOnConnectCallback([](){
     Serial.println("Connected");
     BTconnected = true;
-    hb.setColor(connColor);
-    anim = 9;
+    hb.setColor(defaultColor);
+    anim = someOnAnim;
+    currentAnim = someOnAnim;
   });
 
   BLEMidiServer.setOnDisconnectCallback([]() {  // To show how to make a callback with a lambda function
@@ -71,7 +74,8 @@ void setup() {
     BTconnected = false;
     hb.setColor(disconnColor);
     hb.isRunning = true;
-    anim = disconnectAnim;
+    anim = bounceAnim;
+    currentAnim = bounceAnim;
   });
   //BLEMidiServer.enableDebugging();
 
@@ -127,6 +131,13 @@ void loop() {
   if(prevPushVal != pushVal) {
     ccSend(3, (1-pushVal)*127, CCchannel);
     prevPushVal = pushVal;
+    if(pushVal == 0) {
+      hb.setColor(pushColor);
+      anim = strobeAnim;
+    } else {
+      hb.setColor(defaultColor);
+      anim = currentAnim;
+    }
   }
 
   hb.step(anim);
