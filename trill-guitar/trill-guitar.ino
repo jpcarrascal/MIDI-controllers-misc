@@ -16,6 +16,7 @@ bool BTconnected = false;
 Trill trillSensor;
 bool touchActive = false;
 bool threeTouchSw = false;
+bool fourTouchSw = false;
 
 int count = 0;
 int prevOutVal = -1;
@@ -25,14 +26,17 @@ const int CCchannel = 1;
 bool invert = false;
 
 int someOn = 0;
-uint8_t bounceAnim = 10; // "Bounce"
-uint8_t someOnAnim = 9; // "Some on"
-uint8_t strobeAnim = 7; // "Some on"
+uint8_t bounceAnim = 10;
+uint8_t someOnAnim = 9;
+uint8_t strobeAnim = 7;
+uint8_t drumAnim = 5;
+uint8_t allOffAnim = 0;
 uint8_t anim = bounceAnim;
 uint8_t currentAnim = bounceAnim;
-uint32_t defaultColor      = 0x9060FF,
+uint32_t someOnColor   = 0x9060FF,
+         pushColor      = 0xF0F0F0,
          disconnColor   = 0x0000F0,
-         pushColor      = 0xF0F0F0;
+         currentColor   = disconnColor;
 
 HootBeat hb = HootBeat(NUMLEDS, PINL);
 
@@ -64,7 +68,8 @@ void setup() {
   BLEMidiServer.setOnConnectCallback([](){
     Serial.println("Connected");
     BTconnected = true;
-    hb.setColor(defaultColor);
+    hb.setColor(someOnColor);
+    currentColor = someOnColor;
     anim = someOnAnim;
     currentAnim = someOnAnim;
   });
@@ -73,6 +78,7 @@ void setup() {
     Serial.println("Disconnected");
     BTconnected = false;
     hb.setColor(disconnColor);
+    currentColor = disconnColor;
     hb.isRunning = true;
     anim = bounceAnim;
     currentAnim = bounceAnim;
@@ -90,6 +96,14 @@ void loop() {
       ccSend(2, 127, CCchannel);
       threeTouchSw = true;
     }
+
+    /*if (numTouches == 4) {
+      if(!fourTouchSw)
+        anim = allOffAnim;
+      else
+        anim = currentAnim;
+      fourTouchSw = !fourTouchSw;
+    }*/
 
     if (!touchActive) {
       ccSend(0, 127, CCchannel);
@@ -123,6 +137,7 @@ void loop() {
       ccSend(2, 0, CCchannel);
       threeTouchSw = false;
     }
+
     hb.setSomeOn(0);
     hb.triggerFlash(5);
   }
@@ -135,7 +150,7 @@ void loop() {
       hb.setColor(pushColor);
       anim = strobeAnim;
     } else {
-      hb.setColor(defaultColor);
+      hb.setColor(currentColor);
       anim = currentAnim;
     }
   }
