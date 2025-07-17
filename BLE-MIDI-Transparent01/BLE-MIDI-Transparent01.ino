@@ -9,6 +9,7 @@
 
 #define I2C_SDA 15
 #define I2C_SCL 2
+#define HXSTOMP 1
 
 // Configurationflags:
 const bool debug = false;
@@ -27,12 +28,15 @@ HootBeat hb = HootBeat(2, 17);
 const int intLed = 22;
 int count = 0;
 bool ledStatus = false;
-const int CCchannel = 1;
-const int INchannel = 16;
-const int PCchannel = 13;
-const int note[BUT_COUNT] = {31,30,29,28};
+#if defined(HXSTOMP) //JP's HXStomp channel is 15 (14/0)
+  const int CCchannel = 14;
+  const int cc_pot[POT_COUNT] = {7, 4, 5, 6};
+#else
+  const int CCchannel = 1;
+  const int cc_pot[POT_COUNT] = {3, 4, 5, 6};
+#endif
 
-const int cc_pot[POT_COUNT] = {3, 4, 5, 6};
+const int note[BUT_COUNT] = {31,30,29,28};
 const int pot[POT_COUNT] = {34,35,33,32};
 int potval[POT_COUNT];
 int potvalIN[POT_COUNT];
@@ -52,7 +56,7 @@ void setup() {
   if(i2cMIDI) Wire.begin(I2C_SDA, I2C_SCL);
 
   for(int i=0; i<4; i++) {
-    adcAttachPin(pot[i]);
+    //adcAttachPin(pot[i]); // Deprecated
     potval[i] = 127 - mapAndClamp(analogRead(pot[i]));
   }
 
