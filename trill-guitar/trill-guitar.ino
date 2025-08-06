@@ -54,6 +54,7 @@ void setup() {
   // Trill Sensor cable yellow = SCL
   // Trill Sensor cable blue/white = SDA
   ret = trillSensor.setup(Trill::TRILL_BAR);
+  trillSensor.setPrescaler(4); // (Apparently) prevents spurious triggers
 
   if (ret != 0) {
     Serial.println("failed to initialise trillSensor");
