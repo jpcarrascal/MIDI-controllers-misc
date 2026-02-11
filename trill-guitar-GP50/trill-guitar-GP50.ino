@@ -28,7 +28,7 @@ touchActiveCC = 0
 touchSlideCC = 1;
 threeTouchCC = 2;
 */
-const int touchActiveCC = 13;
+const int touchActiveCC = 55; // Modulation in Valeton GP-50
 const int touchSlideCC = 11;
 const int threeTouchCC = 2;
 bool invert = false;
@@ -55,7 +55,7 @@ void setup() {
   pinMode(pushPin, INPUT_PULLUP);
 
   if(mariposa) invert = false;
-  else invert = true;
+  else invert = false;
   
   // Trill sensor:
   int ret = Wire.setPins(23, 19);  // Set SDA and SCL for LOLIN32
@@ -118,7 +118,7 @@ void loop() {
       ccSend(touchActiveCC, 127, CCchannel);
     }
     int inVal = trillSensor.touchLocation(0);
-    int outVal = midiMapAndClamp(inVal, 0, 3200, 170, 3030, invert);
+    int outVal = midiMapAndClamp100(inVal, 0, 3200, 170, 3030, invert);
     someOn = map(inVal, 0, 3300, NUMLEDS, 0);
     if (prevOutVal != outVal) {
       ccSend(touchSlideCC, outVal, CCchannel);
@@ -197,6 +197,15 @@ int midiMapAndClamp(int input, int min, int max, int bottom, int top, bool inv) 
   int outval = 0;
   if (inv) outval = map(input, bottom, top, 127, 0);
   else outval = map(input, bottom, top, 0, 127);
+  return (outval);
+}
+// Valeton GP-50 expression goes from 0-100, not to 127
+int midiMapAndClamp100(int input, int min, int max, int bottom, int top, bool inv) {
+  if (input < bottom) input = bottom;
+  if (input > top) input = top;
+  int outval = 0;
+  if (inv) outval = map(input, bottom, top, 100, 0);
+  else outval = map(input, bottom, top, 0, 100);
   return (outval);
 }
 
